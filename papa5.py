@@ -1,0 +1,210 @@
+from operator import ilshift
+from tkinter.ttk import Combobox
+import pyodbc
+from tkinter import *
+from tkinter import filedialog
+from tkinter import messagebox
+
+inputdb = 0
+outdb = 1
+lst1=[]
+lst2=[]
+fieldname1=[]
+fieldname2=[]
+tablenames1=[]
+tablenames2=[]
+tab1=1
+tab2=2
+
+def but1():
+    global inputdb,tablenames1
+    filepath = filedialog.askopenfilename()
+    filepath=filepath.replace('\\','/')
+    inputdb = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ='+filepath+';')
+    tabcur1=inputdb.cursor()
+    temptablenames1=tabcur1.tables()
+    for i in temptablenames1:
+        if i[3]=='TABLE':
+            tablenames1.append(i[2])
+    cb1.configure(values=tablenames1)
+    b1.configure(bg='green')
+    
+def but2():
+    global outdb,cb2
+    filepath = filedialog.askopenfilename()
+    filepath=filepath.replace('\\','/')
+    outdb = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ='+filepath+';')
+    tabcur2=outdb.cursor()
+    temptablenames2=tabcur2.tables()
+    for i in temptablenames2:
+        if i[3]=='TABLE':
+            tablenames2.append(i[2])
+    cb2.configure(values=tablenames2)
+    b2.configure(bg='green')
+    
+def everything1():
+    global fieldname2,fieldname1,tab1,tab2
+    tab1=str(cb1.get())
+    tab2=str(cb2.get())
+    namecur1 = inputdb.cursor()
+    namecur1.execute('select * from '+tab1)
+    fieldname1 = [column[0] for column in namecur1.description]
+    for i in fieldname1:
+        if " " in i:
+            fieldname1[fieldname1.index(i)]='['+i+']'
+    namecur2 = outdb.cursor()
+    namecur2.execute('select * from '+tab2)
+    fieldname2 = [column[0] for column in namecur2.description]
+    for i in fieldname2:
+        if " " in i:
+            fieldname2[fieldname2.index(i)]='['+i+']'
+    
+def everything2():
+    global lst1,lst2,tab1,tab2
+    cursor1 = inputdb.cursor()
+    cursor2 = outdb.cursor()
+    if len(lst1)==1:
+        cursor1.execute('select '+str(lst1[0])+' from '+tab1)
+        r1=cursor1.fetchall()
+        try:
+            for rec in r1:    
+                cursor2.execute('insert into '+tab2+' ('+str(lst2[0])+') values '+str(rec).replace(",",""))
+            messagebox.showinfo("Succesfully Completed","Records inserted Succesfully !!")
+        except:
+            messagebox.showerror("Type Error","Data Type Mismatch Found !")
+    elif len(lst1)==0:
+        messagebox.showerror("No Connections Made","Please Form Links Before Proceeding")
+    else:
+        cursor1.execute('select '+(", ".join(lst1))+' from '+tab1)
+        r1=cursor1.fetchall()
+        try:
+            for rec in r1:
+                cursor2.execute('insert into '+tab2+' ('+(", ".join(lst2))+') values '+str(rec))
+            messagebox.showinfo("Succesfully Completed","Records inserted Succesfully !!")
+        except:
+            messagebox.showerror("Type Error","Data Type Mismatch Found !")
+    outdb.commit()
+
+def addCdo():
+    global e31,c31,fieldname2,c22
+    try:
+        curAddColumn=outdb.cursor()
+        curAddColumn.execute('Alter table '+tab2+' add column '+str(e31.get())+' '+str(c31.get()))
+        fieldname2+=[str(e31.get())]
+        c22['values']=tuple(fieldname2)
+        messagebox.showinfo("Succesfully Completed","Column Added Succesfully !!")
+    except Exception as e:
+        messagebox.showinfo("Error Occured !",e)
+
+def addColumn():
+    global e31,c31
+    addC=Toplevel(men)
+    addC.title("Column Name & Type")
+    l31=Label(addC,text="Column Name").grid(row=1,column=1,sticky="news",padx=10,pady=10)
+    e31=Entry(addC)
+    e31.grid(row=1,column=2,sticky="news",padx=10,pady=10)
+    l32=Label(addC,text="Data Type").grid(row=2,column=1,sticky="news",padx=10,pady=10)
+    c31=Combobox(addC)
+    c31['values']=('Varchar(20)','Int','Date','Char(1)','Float')
+    c31.grid(row=2,column=2,sticky="news",padx=10,pady=10)
+    b31=Button(addC,text="Add Column",command=addCdo)
+    b31.grid(row=3,column=1,sticky="news",padx=10,pady=10)
+    b32=Button(addC,text="Exit",command=addC.destroy)
+    b32.grid(row=3,column=2,sticky="news",padx=10,pady=10)
+    addC.mainloop()
+
+# def addTdo():
+#     global et1,tablenames2
+#     try:
+#         curAddTable=outdb.cursor()
+#         curAddTable.execute('create table '+)
+#         tablenames2+=[str(et1.get())]
+#         cb2.configure(values=tablenames2)
+#         messagebox.showinfo("Succesfully Completed","Column Added Succesfully !!")
+#     except Exception as e:
+#         messagebox.showinfo("Error Occured !",e)
+
+# def addTable():
+#     global et1
+#     addT=Toplevel(root)
+#     addT.title("Table & Columns")
+#     lt1=Label(addT,text="Table Name").grid(row=1,column=1,sticky="news",padx=10,pady=10)
+#     et1=Entry(addT)
+#     et1.grid(row=1,column=2,sticky="news",padx=10,pady=10)
+#     bt1=Button(addT,text="Create Table",command=addTdo)
+#     bt1.grid(row=2,column=1,sticky="news",padx=10,pady=10)
+#     bt2=Button(addT,text="Exit",command=addT.destroy)
+#     bt2.grid(row=2,column=2,sticky="news",padx=10,pady=10)
+#     addT.mainloop()
+    
+def connect():
+    global lst1,lst2
+    lst1.append(str(c21.get()))
+    lst2.append(str(c22.get()))
+    list21.insert("end",str(c21.get())+" --> "+str(c22.get()))
+    
+def clear():
+    global lst1,lst2
+    lst1=[]
+    lst2=[]
+    list21.delete(0,"end")
+    messagebox.showinfo("Cleared","Connections Removed !!")
+    
+def closeapp():
+    global inputdb,outdb,men
+    inputdb.close()
+    outdb.close()
+    men.destroy()
+    root.destroy()
+    exit(0)
+    
+def menu():
+    global fieldname2,fieldname1,c21,c22,list21,men
+    try:
+        everything1()
+    except:
+        messagebox.showerror("Fatal Error","Error Occured While Trying To Open Database !! Exiting ...")
+        exit(0)
+    men=Toplevel(root)
+    men.title("Make Connections")
+    l21=Label(men,text="Source File").grid(row=1,column=1,sticky="news",padx=10,pady=10)
+    l22=Label(men,text="Destination File").grid(row=1,column=2,sticky="news",padx=10,pady=10)
+    c21=Combobox(men)
+    c21['values']=tuple(fieldname1)
+    c21.grid(row=2,column=1,sticky="news",padx=10,pady=10)
+    c22=Combobox(men)
+    c22['values']=tuple(fieldname2)
+    c22.grid(row=2,column=2,sticky="news",padx=10,pady=10)
+    b20=Button(men,text="Add Column",command=addColumn)
+    b20.grid(row=3,column=1,columnspan=2,sticky="news",padx=10,pady=10)
+    b21=Button(men,text="Create Link",command=connect)
+    b21.grid(row=4,column=1,columnspan=2,sticky="news",padx=10,pady=10)
+    list21=Listbox(men,height=10,width=10)
+    list21.grid(row=5,column=1,columnspan=2,sticky="news",padx=10,pady=10)
+    b22=Button(men,text="Process",command=everything2)
+    b22.grid(row=6,column=1,columnspan=2,sticky="news",padx=10,pady=10)
+    bclea=Button(men,text="Clear",command=clear)
+    bclea.grid(row=7,column=1,sticky="news",padx=10,pady=10)
+    bexit=Button(men,text="Exit",command=closeapp)
+    bexit.grid(row=7,column=2,sticky="news",padx=10,pady=10)
+    men.mainloop()
+    
+root=Tk()
+root.title("Choose Tables")
+l1=Label(text="Source File").grid(row=1,column=1,sticky="news",padx=10,pady=10)
+l2=Label(text="Destination File").grid(row=3,column=1,sticky="news",padx=10,pady=10)
+b1=Button(text="Choose",command=but1)
+b1.grid(row=1,column=2,sticky="news",padx=10,pady=10)
+b2=Button(text="Choose",command=but2)
+b2.grid(row=3,column=2,sticky="news",padx=10,pady=10)
+# b125=Button(text="Add Table",command=addTable)
+# b125.grid(row=5,column=1,columnspan=2,sticky="news",padx=10,pady=10)
+b3=Button(text="Next",command=menu)
+b3.grid(row=6,column=1,columnspan=2,sticky="news",padx=10,pady=10)
+cb1=Combobox(root)
+cb1['values']=tuple(tablenames1)
+cb1.grid(row=2,column=1,columnspan=2,padx=10,pady=10,sticky="news")
+cb2=Combobox(root)
+cb2['values']=tuple(tablenames2)
+cb2.grid(row=4,column=1,columnspan=2,padx=10,pady=10,sticky="news")
+root.mainloop()
